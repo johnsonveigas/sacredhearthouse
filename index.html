@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+<link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Tank Level Monitoring with Buzzer and Sensor Status</title>
+    <style>
+        /* Navbar styles */
+        .navbar {
+            background-color: #333;
+            overflow: hidden;
+        }
+
+        .navbar .menu {
+            float: right;
+            overflow: hidden;
+        }
+
+        .navbar .menu .dropbtn {
+            cursor: pointer;
+            padding: 14px 16px;
+            background-color: #333;
+            color: white;
+            border: none;
+            font-size: 16px;
+        }
+
+        .navbar .menu .dropdown-content {
+            display: none;
+            position: absolute;
+            left: 50%;
+            background-color: #f9f9f9;
+            min-width: 100%;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            z-index: 1;
+            transform: translateX(-50%);
+        }
+
+        .navbar .menu .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+
+        .navbar .menu .dropdown-content a:hover {
+            background-color: #f1f1f1;
+        }
+
+        .navbar .menu .dropdown:hover .dropdown-content {
+            display: block;
+        }
+
+        /* Tank container and tank styles */
+        .tank-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px auto;
+        }
+
+        .tank {
+            width: 150px;
+            height: 400px;
+            border: 3px solid #000;
+            position: relative;
+            background-color: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .water {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background-color: #00aaff;
+            border-bottom-left-radius: 15px;
+            border-bottom-right-radius: 15px;
+            transition: height 0.5s ease, border-radius 0.5s ease;
+            z-index: 1; /* Ensure water stays below the sensor */
+        }
+
+        .sensor-status {
+            position: absolute;
+            top: 10px; /* Adjust this to move the sensors */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            background-color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: black;
+            z-index: 2; /* Ensure sensors are above the water */
+        }
+
+        .level-text {
+            text-align: center;
+            font-size: 20px;
+            margin-top: 10px;
+            font-family: Arial, sans-serif;
+            color: #333;
+        }
+
+        .buzzer-alert {
+            text-align: center;
+            font-size: 22px;
+            color: red;
+            font-weight: bold;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .acknowledge-btn {
+            display: none;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .acknowledge-btn:hover {
+            background-color: #218838;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .status-dot {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .status-dot.online {
+            background-color: green;
+        }
+
+        .status-dot.offline {
+            background-color: red;
+        }
+
+        @media (max-width: 600px) {
+            .tank-container {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .tank {
+                width: 130px;
+                height: 300px;
+            }
+
+            .level-text {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="navbar">
+        <div class="menu">
+            <div class="dropdown">
+                <button class="dropbtn">☰ Menu</button>
+                <div class="dropdown-content">
+                    <a href="monitor.html">Variable Monitor</a>
+                    <a href="trendview.html">Water Level Trendview</a>
+                </div>
+            </div>
+        </div>
+    </div>
+<br><br>
+    <div class="tank-container">
+        <div class="tank">
+            <div id="sensorStatus1" class="sensor-status">✅</div>
+            <div id="waterLevel1" class="water" style="height: 0%;"></div>
+        </div>
+        <div class="tank">
+            <div id="sensorStatus2" class="sensor-status">✅</div>
+            <div id="waterLevel2" class="water" style="height: 0%;"></div>
+        </div>
+    </div>
+
+    <div class="level-text">
+        Tank 1 Water Level: <span id="levelDisplay1">0</span>%
+    </div>
+    <div class="level-text">
+        Tank 2 Water Level: <span id="levelDisplay2">0</span>%
+    </div>
+
+    <div class="buzzer-alert" id="buzzerAlert">
+        Buzzer ON! Please Acknowledge.
+    </div>
+
+    <button id="acknowledgeBtn" class="acknowledge-btn" onclick="acknowledgeBuzzer()">Acknowledge</button>
+
+    <div class="status">
+        <div class="status-dot" id="statusDot"> </div>
+        <div id="espStatus">ESP Status: Unknown</div>
+        <button id="recheckBtn" onclick="checkEspStatus()">Recheck</button>
+    </div>
+
+    <script>
+    // Function to update the water level and other elements
+    function updateWaterLevel(level, tankId, displayId) {
+        const water = document.getElementById(tankId);
+        const levelDisplay = document.getElementById(displayId);
+        const waterLevel = Math.max(0, Math.min(100, level));
+        water.style.height = waterLevel + '%';
+        levelDisplay.innerText = waterLevel;
+
+        if (waterLevel === 100) {
+            water.style.borderTopLeftRadius = '15px';
+            water.style.borderTopRightRadius = '15px';
+        } else {
+            water.style.borderTopLeftRadius = '0';
+            water.style.borderTopRightRadius = '0';
+        }
+    }
+
+    // Fetch data from the MySQL database
+    // Fetch data from the MySQL database
+function fetchData() {
+    fetch('http://sacredhearthouse.whf.bz/fetch_data.php')  // Your URL here
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.length > 0) {
+                const tankData = data[0]; // Get the first record
+                updateWaterLevel(tankData.level1, 'waterLevel1', 'levelDisplay1');
+                updateWaterLevel(tankData.level2, 'waterLevel2', 'levelDisplay2');
+
+                // Show or hide the buzzer alert based on the Buzzer value
+                const buzzerAlert = document.getElementById('buzzerAlert');
+                const acknowledgeBtn = document.getElementById('acknowledgeBtn');
+                if (tankData.Buzzer === '1') {  // Ensure you compare as string or number based on your DB
+                    buzzerAlert.style.display = 'block';
+                    acknowledgeBtn.style.display = 'block';
+                } else {
+                    buzzerAlert.style.display = 'none';
+                    acknowledgeBtn.style.display = 'none';
+                }
+
+                // Update sensor status based on sen_status
+                const sensorStatus1 = document.getElementById('sensorStatus1');
+                const sensorStatus2 = document.getElementById('sensorStatus2');
+                const sensorStatus = tankData.sen_status;
+                //aconsole.log(tankData.sen_status);
+                let sen_status = parseInt(tankData.sen_status);
+                
+                switch (sen_status) {
+                    case 0:
+                        sensorStatus1.textContent = '✅';
+                        sensorStatus1.style.backgroundColor = 'green';
+                        sensorStatus2.textContent = '✅';
+                        sensorStatus2.style.backgroundColor = 'green';
+                        break;
+                    case 1:
+                        sensorStatus1.textContent = '⚠️';
+                        sensorStatus1.style.backgroundColor = 'yellow';
+                        sensorStatus2.textContent = '✅';
+                        sensorStatus2.style.backgroundColor = 'green';
+                        break;
+                    case 2:
+                        sensorStatus1.textContent = '✅';
+                        sensorStatus1.style.backgroundColor = 'green';
+                        sensorStatus2.textContent = '⚠️';
+                        sensorStatus2.style.backgroundColor = 'yellow';
+                        break;
+                    case 3:
+                        sensorStatus1.textContent = '❌';
+                        sensorStatus1.style.backgroundColor = 'red';
+                        sensorStatus2.textContent = '❌';
+                        sensorStatus2.style.backgroundColor = 'red';
+                        break;
+                }
+
+                // Update the ESP online status
+                const statusDot = document.getElementById('statusDot');
+                const espStatus = document.getElementById('espStatus');
+                if (tankData.online === 1) {
+                    statusDot.className = 'status-dot online';
+                    espStatus.innerText = 'ESP Status: Online';
+                } else {
+                    statusDot.className = 'status-dot offline';
+                    espStatus.innerText = 'ESP Status: Offline';
+                }
+            } else {
+                console.log("No data received from the server");
+            }
+        })
+        .catch(error => console.error('Error fetching data:', error));
+}
+    // Acknowledge button function
+  
+const acknowledgeUrl = "http://sacredhearthouse.whf.bz/send_ackno.php"; // Your PHP URL
+const apiKey = "1234"; // Your API key
+const id = 1; // Your ID
+const ackno = 1; // Set this to 1 or 0 based on acknowledgment status
+
+async function acknowledgeBuzzer() {
+    try {
+        const params = new URLSearchParams();
+        params.append("api_key", apiKey); // API key
+        params.append("id", id); // ID
+        params.append("ackno", ackno); // Acknowledgment value
+
+        const response = await fetch(acknowledgeUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: params.toString()
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        const result = await response.text(); // Use text() since your PHP echoes a string
+        console.log("Acknowledge response:", result);
+
+    } catch (error) {
+        console.error("Error acknowledging buzzer:", error.message);
+    }
+}
+
+    // Fetch data every 5 seconds
+    setInterval(fetchData, 100);
+
+    // Initial data fetch
+    fetchData();
+    </script>
+</body>
+</html>                           
