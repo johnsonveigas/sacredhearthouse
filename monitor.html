@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Data Display</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        #loading {
+            font-style: italic;
+            text-align: center;
+        }
+        #error {
+            color: red;
+            font-weight: bold;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Water Level Data</h1>
+    <p id="loading">Loading data...</p>
+    <p id="error"></p>
+
+    <!-- Table to display data -->
+    <table id="dataTable">
+        <thead>
+            <tr>
+                <th>Level 1</th>
+                <th>Level 2</th>
+                <th>Ackno</th>
+                <th>Buzzer</th>
+                <th>Command Response</th>
+                <th>Command</th>
+                <th>Sensor Status</th>
+                <th>Last Update</th>
+                <th>Online Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Data will be injected here -->
+        </tbody>
+    </table>
+
+    <script>
+        let firstLoad = true; // Variable to track the first data load
+
+        async function fetchData() {
+            const loadingText = document.getElementById('loading');
+            const errorText = document.getElementById('error');
+            const dataTable = document.getElementById('dataTable').getElementsByTagName('tbody')[0];
+
+            // Clear any previous error messages
+            errorText.innerText = '';
+            
+            // Show the loading text only for the first load
+            if (firstLoad) {
+                loadingText.style.display = 'block';
+            }
+
+            try {
+                const response = await fetch('http://sacredhearthouse.whf.bz/fetch_data.php');
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch data from the API.');
+                }
+
+                const data = await response.json();
+                
+                // Check if the data is not empty
+                if (data.length === 0) {
+                    throw new Error('No data available.');
+                }
+
+                // Hide the loading message after the first load
+                if (firstLoad) {
+                    loadingText.style.display = 'none';
+                    firstLoad = false; // Set firstLoad to false after the first data load
+                }
+
+                // Clear any previous table rows
+                dataTable.innerHTML = '';
+
+                // Loop through the data and create table rows
+                data.forEach(item => {
+                    const row = dataTable.insertRow();
+                    
+                    row.innerHTML = `
+                        <td>${item.level1}</td>
+                        <td>${item.level2}</td>
+                        <td>${item.Ackno}</td>
+                        <td>${item.Buzzer}</td>
+                        <td>${item.comd_resp}</td>
+                        <td>${item.command}</td>
+                        <td>${item.sen_status}</td>
+                        <td>${item.last_update}</td>
+                        <td>${item.online === 1 ? 'Online' : 'Offline'}</td>
+                    `;
+                });
+            } catch (error) {
+                loadingText.style.display = 'none';
+                errorText.innerText = error.message;
+            }
+        }
+
+        // Call the function to fetch and display data when the page loads
+        fetchData();
+
+        // Set an interval to update the table every second (1000 ms)
+        setInterval(fetchData, 5000);
+    </script>
+
+</body>
+</html>

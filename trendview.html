@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Level Trend</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            text-align: center;
+        }
+        #controls {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+        }
+        #error {
+            color: red;
+            text-align: center;
+            font-weight: bold;
+        }
+        #loading {
+            text-align: center;
+            font-style: italic;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Water Level Trend</h1>
+
+    <!-- Controls for date, time, and number of data points -->
+    <div id="controls">
+        <label for="dataCount">Number of Data Points:</label>
+        <input type="number" id="dataCount" value="500" min="1" max="1000" step="1">
+
+        <label for="datePicker">Select Date:</label>
+        <input type="date" id="datePicker">
+
+        <label for="timeStart">Start Time:</label>
+        <input type="time" id="timeStart">
+
+        <label for="timeEnd">End Time:</label>
+        <input type="time" id="timeEnd">
+
+        <button onclick="fetchData()">Update Chart</button>
+    </div>
+
+    <p id="loading">Loading data, please wait...</p>
+    <p id="error"></p>
+
+    <canvas id="waterLevelChart" width="800" height="400"></canvas>
+
+    <script>
+        let chartInstance = null; // Variable to store the current chart instance
+
+        // Function to format timestamp to 12-hour format with AM/PM
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            const options = { 
+                year: 'numeric', 
+                month: '2-digit', 
+                day: '2-digit', 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit', 
+                hour12: true 
+            };
+            return date.toLocaleString('en-US', options);
+        }
+
+        async function fetchData() {
+            // Clear any previous error messages
+            document.getElementById("error").innerText = "";
+            document.getElementById("loading").style.display = "block";
+
+            const dataCount = document.getElementById('dataCount').value;
+            const selectedDate = document.getElementById('datePicker').value;
+            const timeStart = document.getElementById('timeStart').value;
+            const timeEnd = document.getElementById('timeEnd').value;
+
+            // Construct the URL
+            let url = "http://sacredhearthouse.whf.bz/get_historical_data.php?";
+            if (selectedDate) {
+                url += `date=${selectedDate}`;
+            }
+            if (timeStart) {
+                url += `&time_start=${timeStart}`;
+            }
+            if (timeEnd) {
+                url += `&time_end=${timeEnd}`;
+            }
+
+            try {
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch data. Please try again later.");
+                }
+
+                const data = await response.json();
+
+                // Handle potential errors returned by the server
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Filter the data
+                const filteredData = data.slice(-dataCount);
+
+                if (filteredData.length === 0) {
+                    throw new Error("No data available for the selected date and time range.");
+                }
+
+                // Format timestamps to 12-hour format with AM/PM
+                const labels = filteredData.map(row => formatTimestamp(row.last_update));
+                const level1 = filteredData.map(row => row.level1);
+                const level2 = filteredData.map(row => row.level2);
+
+                // Destroy the previous chart if it exists
+                if (chartInstance) {
+                    chartInstance.destroy();
+                }
+
+                // Render the chart
+                const ctx = document.getElementById("waterLevelChart").getContext("2d");
+                chartInstance = new Chart(ctx, {
+                    type: "line",
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: "TOP Tank",
+                                data: level1,
+                                borderColor: "blue",
+                                backgroundColor: "rgba(0, 0, 255, 0.1)",
+                                fill: true,
+                            },
+                            {
+                                label: "Bottom Tank",
+                                data: level2,
+                                borderColor: "green",
+                                backgroundColor: "rgba(0, 255, 0, 0.1)",
+                                fill: true,
+                            },
+                        ],
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: "top",
+                            },
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: "Timestamp",
+                                },
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: "Water Level",
+                                },
+                            },
+                        },
+                    },
+                });
+            } catch (error) {
+                document.getElementById("error").innerText = error.message;
+            } finally {
+                document.getElementById("loading").style.display = "none";
+            }
+        }
+
+        // Fetch and render data on page load
+        fetchData();
+    </script>
+</body>
+</html>
