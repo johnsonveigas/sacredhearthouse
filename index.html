@@ -239,7 +239,7 @@
     // Fetch data from the MySQL database
     // Fetch data from the MySQL database
 function fetchData() {
-    fetch('fetch_data.php')  // Your URL here
+    fetch('http://sacredhearthouse.whf.bz/fetch_data.php')  // Your URL here
         .then(response => response.json())
         .then(data => {
             if (data && data.length > 0) {
@@ -310,7 +310,7 @@ function fetchData() {
 }
     // Acknowledge button function
   
-const acknowledgeUrl = "send_ackno.php"; // Your PHP URL
+const acknowledgeUrl = "http://sacredhearthouse.whf.bz/send_ackno.php"; // Your PHP URL
 const apiKey = "1234"; // Your API key
 const id = 1; // Your ID
 const ackno = 1; // Set this to 1 or 0 based on acknowledgment status
